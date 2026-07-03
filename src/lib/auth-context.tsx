@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Profile, CharacterStats, Quest } from "./supabase/types";
+import { supabase, isSupabaseConfigured } from "./supabase/client";
 
 interface AuthContextType {
   user: Profile | null;
@@ -15,6 +16,11 @@ interface AuthContextType {
   gainStatPoints: (statUpdates: Record<string, number>) => void;
   toggleQuest: (questId: string) => void;
   addQuest: (title: string, type: Quest["type"], difficulty: Quest["difficulty"], stats: Record<string, number>) => void;
+  
+  // Supabase Auth Methods
+  supabaseUser: any | null;
+  loginWithSupabase: (email: string, password: string) => Promise<{ error: any }>;
+  signupWithSupabase: (email: string, password: string, username: string, fullName: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,7 +42,6 @@ const getRankForLevel = (lvl: number): string => {
   return "Grandmaster";
 };
 
-// Starting daily missions default seed
 const DEFAULT_MISSIONS: Omit<Quest, "id" | "user_id" | "created_at" | "updated_at" | "completed_at">[] = [
   {
     title: "Daily Synchronization",
@@ -101,45 +106,95 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [supabaseUser, setSupabaseUser] = useState<any | null>(null);
+
+  // Helper to load cloud data for authenticated Supabase users
+  const loadCloudData = async (userId: string) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      const { data: charStats } = await supabase
+        .from("character_stats")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      const { data: questList } = await supabase
+        .from("quests")
+        .select("*")
+        .eq("user_id", userId);
+
+      if (profile && charStats) {
+        setUser(profile);
+        setStats(charStats);
+        setQuests(questList || []);
+        setIsAuthenticated(true);
+
+        localStorage.setItem("atlas.user", JSON.stringify(profile));
+        localStorage.setItem("atlas.stats", JSON.stringify(charStats));
+        if (questList) localStorage.setItem("atlas.quests", JSON.stringify(questList));
+      }
+    } catch (err) {
+      console.error("Error loading cloud data:", err);
+    }
+  };
 
   useEffect(() => {
-    // Load local simulated state on mount
-    const storedUser = localStorage.getItem("atlas.user");
-    const storedStats = localStorage.getItem("atlas.stats");
-    const storedQuests = localStorage.getItem("atlas.quests");
-
-    if (storedUser && storedStats) {
-      setUser(JSON.parse(storedUser));
-      setStats(JSON.parse(storedStats));
-      setIsAuthenticated(true);
-      
-      if (storedQuests) {
-        setQuests(JSON.parse(storedQuests));
-      } else {
-        // Initialize default quests
-        const initialQuests: Quest[] = DEFAULT_MISSIONS.map((q, idx) => ({
-          ...q,
-          id: `quest-${idx}-${Date.now()}`,
-          user_id: JSON.parse(storedUser).id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          completed_at: null
-        }));
-        setQuests(initialQuests);
-        localStorage.setItem("atlas.quests", JSON.stringify(initialQuests));
+    const initAuth = async () => {
+      if (isSupabaseConfigured && supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setSupabaseUser(session.user);
+          await loadCloudData(session.user.id);
+          setIsLoading(false);
+          return;
+        }
       }
-    }
-    setIsLoading(false);
+
+      // Fallback local storage auth load
+      const storedUser = localStorage.getItem("atlas.user");
+      const storedStats = localStorage.getItem("atlas.stats");
+      const storedQuests = localStorage.getItem("atlas.quests");
+
+      if (storedUser && storedStats) {
+        setUser(JSON.parse(storedUser));
+        setStats(JSON.parse(storedStats));
+        setIsAuthenticated(true);
+        
+        if (storedQuests) {
+          setQuests(JSON.parse(storedQuests));
+        } else {
+          const initialQuests: Quest[] = DEFAULT_MISSIONS.map((q, idx) => ({
+            ...q,
+            id: `quest-${idx}-${Date.now()}`,
+            user_id: JSON.parse(storedUser).id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            completed_at: null
+          }));
+          setQuests(initialQuests);
+          localStorage.setItem("atlas.quests", JSON.stringify(initialQuests));
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initAuth();
   }, []);
 
-  const completeOnboarding = (
+  const completeOnboarding = async (
     username: string,
     fullName: string,
     archetype: string,
     targetWeight: number,
     allocatedStats: Record<string, number>
   ) => {
-    const userId = `user-${Math.random().toString(36).substr(2, 9)}`;
+    const userId = supabaseUser?.id || `user-${Math.random().toString(36).substr(2, 9)}`;
     const nowStr = new Date().toISOString();
 
     const newUser: Profile = {
@@ -190,12 +245,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("atlas.user", JSON.stringify(newUser));
     localStorage.setItem("atlas.stats", JSON.stringify(newStats));
     localStorage.setItem("atlas.quests", JSON.stringify(initialQuests));
+
+    // Async push to Supabase if active
+    if (isSupabaseConfigured && supabase && supabaseUser) {
+      try {
+        await supabase.from("profiles").upsert(newUser);
+        await supabase.from("character_stats").upsert(newStats);
+        await supabase.from("quests").upsert(initialQuests);
+      } catch (err) {
+        console.error("Cloud onboarding sync error:", err);
+      }
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (isSupabaseConfigured && supabase) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
     setStats(null);
     setQuests([]);
+    setSupabaseUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem("atlas.user");
     localStorage.removeItem("atlas.stats");
@@ -229,6 +299,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(updatedUser);
     localStorage.setItem("atlas.user", JSON.stringify(updatedUser));
 
+    if (isSupabaseConfigured && supabase && supabaseUser) {
+      supabase.from("profiles").upsert(updatedUser).then(({ error }) => { if (error) console.error(error); });
+    }
+
     // Automatically reward stats if leveled up
     if (leveledUp && stats) {
       const updatedStats: CharacterStats = {
@@ -247,7 +321,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStats(updatedStats);
       localStorage.setItem("atlas.stats", JSON.stringify(updatedStats));
 
-      // Trigger standard alert notification
+      if (isSupabaseConfigured && supabase && supabaseUser) {
+        supabase.from("character_stats").upsert(updatedStats).then(({ error }) => { if (error) console.error(error); });
+      }
+
       addNotification(
         "Level Up!",
         `Congratulations! You have attained Level ${currentLvl}. All primary stats increased by 1!`,
@@ -286,6 +363,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setStats(updatedStats);
     localStorage.setItem("atlas.stats", JSON.stringify(updatedStats));
+
+    if (isSupabaseConfigured && supabase && supabaseUser) {
+      supabase.from("character_stats").upsert(updatedStats).then(({ error }) => { if (error) console.error(error); });
+    }
   };
 
   const toggleQuest = (questId: string) => {
@@ -298,14 +379,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           addXP(q.xp_reward, `Completed quest: ${q.title}`);
           gainStatPoints(q.stat_rewards);
         } else {
-          // If unchecked, reverse the XP (basic penalty prevention, user clicked by mistake)
           if (user) {
             const reversedXP = Math.max(0, user.xp - q.xp_reward);
             const updatedUser = { ...user, xp: reversedXP };
             setUser(updatedUser);
             localStorage.setItem("atlas.user", JSON.stringify(updatedUser));
+            if (isSupabaseConfigured && supabase && supabaseUser) {
+              supabase.from("profiles").upsert(updatedUser).then(({ error }) => { if (error) console.error(error); });
+            }
           }
-          // Reverse stats
           const reversedStats = { ...q.stat_rewards };
           Object.keys(reversedStats).forEach(k => {
             reversedStats[k] = -reversedStats[k];
@@ -313,12 +395,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           gainStatPoints(reversedStats);
         }
 
-        return {
+        const updatedQuest = {
           ...q,
           is_completed: nextState,
           completed_at: nextState ? new Date().toISOString() : null,
           updated_at: new Date().toISOString()
         };
+
+        if (isSupabaseConfigured && supabase && supabaseUser) {
+          supabase.from("quests").upsert(updatedQuest).then(({ error }) => { if (error) console.error(error); });
+        }
+
+        return updatedQuest;
       }
       return q;
     });
@@ -361,6 +449,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const nextQuests = [...quests, newQuest];
     setQuests(nextQuests);
     localStorage.setItem("atlas.quests", JSON.stringify(nextQuests));
+
+    if (isSupabaseConfigured && supabase && supabaseUser) {
+      supabase.from("quests").upsert(newQuest).then(({ error }) => { if (error) console.error(error); });
+    }
+  };
+
+  const loginWithSupabase = async (email: string, password: string) => {
+    if (!isSupabaseConfigured || !supabase) {
+      return { error: { message: "Supabase is not configured." } };
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (data?.user) {
+      setSupabaseUser(data.user);
+      await loadCloudData(data.user.id);
+    }
+    return { error };
+  };
+
+  const signupWithSupabase = async (
+    email: string,
+    password: string,
+    username: string,
+    fullName: string
+  ) => {
+    if (!isSupabaseConfigured || !supabase) {
+      return { error: { message: "Supabase is not configured." } };
+    }
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (data?.user) {
+      setSupabaseUser(data.user);
+      
+      // Seed default profile values upon signing up
+      const nowStr = new Date().toISOString();
+      const initialProfile: Profile = {
+        id: data.user.id,
+        username: username.toLowerCase(),
+        full_name: fullName,
+        avatar_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${username}`,
+        level: 1,
+        xp: 0,
+        rank: "Novice",
+        streak_current: 1,
+        streak_longest: 1,
+        streak_last_date: new Date().toISOString().split("T")[0],
+        life_score: 100,
+        streak_shields: 1,
+        created_at: nowStr,
+        updated_at: nowStr
+      };
+
+      const initialStats: CharacterStats = {
+        user_id: data.user.id,
+        health: 10,
+        strength: 10,
+        discipline: 10,
+        knowledge: 10,
+        focus: 10,
+        consistency: 10,
+        endurance: 10,
+        creativity: 10,
+        confidence: 10,
+        wisdom: 10
+      };
+
+      await supabase.from("profiles").insert(initialProfile);
+      await supabase.from("character_stats").insert(initialStats);
+      await loadCloudData(data.user.id);
+    }
+    return { error };
   };
 
   return (
@@ -376,7 +533,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         addXP,
         gainStatPoints,
         toggleQuest,
-        addQuest
+        addQuest,
+        supabaseUser,
+        loginWithSupabase,
+        signupWithSupabase
       }}
     >
       {children}
