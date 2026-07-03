@@ -8,6 +8,7 @@ import Topbar from "../components/layout/Topbar";
 import CommandPalette from "../components/shared/CommandPalette";
 import StudyModule from "../components/study/StudyModule";
 import FinanceModule from "../components/finance/FinanceModule";
+import FitnessModule from "../components/fitness/FitnessModule";
 import { checkAndRunMigration } from "../lib/migration";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -346,6 +347,8 @@ export default function Home() {
               <StudyModule key="study-view" />
             ) : currentView === "finance" ? (
               <FinanceModule key="finance-view" />
+            ) : currentView === "fitness" ? (
+              <FitnessModule key="fitness-view" />
             ) : (
               <motion.div
                 key="module-placeholder"
