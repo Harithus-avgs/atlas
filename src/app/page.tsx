@@ -6,6 +6,9 @@ import CharacterCreation from "../components/auth/CharacterCreation";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import CommandPalette from "../components/shared/CommandPalette";
+import StudyModule from "../components/study/StudyModule";
+import FinanceModule from "../components/finance/FinanceModule";
+import { checkAndRunMigration } from "../lib/migration";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Flame,
@@ -49,6 +52,22 @@ export default function Home() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // Trigger legacy auto-migration on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      const result = checkAndRunMigration();
+      if (result.migrated) {
+        addXP(100, "Legacy data migration completed");
+        gainStatPoints({ discipline: 2, wisdom: 2 });
+        showToast(
+          "V1 Data Migrated!",
+          "Successfully loaded your past study and finance records. +100 XP awarded!",
+          "+100 XP"
+        );
+      }
+    }
+  }, [isAuthenticated]);
 
   const handleQuickAction = (actionKey: string) => {
     if (!user) return;
@@ -323,6 +342,10 @@ export default function Home() {
                 </div>
 
               </motion.div>
+            ) : currentView === "study" ? (
+              <StudyModule key="study-view" />
+            ) : currentView === "finance" ? (
+              <FinanceModule key="finance-view" />
             ) : (
               <motion.div
                 key="module-placeholder"
