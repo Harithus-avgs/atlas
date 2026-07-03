@@ -10,6 +10,7 @@ import StudyModule from "../components/study/StudyModule";
 import FinanceModule from "../components/finance/FinanceModule";
 import FitnessModule from "../components/fitness/FitnessModule";
 import CareerModule from "../components/career/CareerModule";
+import CreativeModule from "../components/creative/CreativeModule";
 import { checkAndRunMigration } from "../lib/migration";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -352,6 +353,8 @@ export default function Home() {
               <FitnessModule key="fitness-view" />
             ) : currentView === "career" ? (
               <CareerModule key="career-view" />
+            ) : currentView === "creative" ? (
+              <CreativeModule key="creative-view" />
             ) : (
               <motion.div
                 key="module-placeholder"
