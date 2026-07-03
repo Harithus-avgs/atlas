@@ -9,6 +9,7 @@ import CommandPalette from "../components/shared/CommandPalette";
 import StudyModule from "../components/study/StudyModule";
 import FinanceModule from "../components/finance/FinanceModule";
 import FitnessModule from "../components/fitness/FitnessModule";
+import CareerModule from "../components/career/CareerModule";
 import { checkAndRunMigration } from "../lib/migration";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -349,6 +350,8 @@ export default function Home() {
               <FinanceModule key="finance-view" />
             ) : currentView === "fitness" ? (
               <FitnessModule key="fitness-view" />
+            ) : currentView === "career" ? (
+              <CareerModule key="career-view" />
             ) : (
               <motion.div
                 key="module-placeholder"
