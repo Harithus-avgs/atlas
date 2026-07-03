@@ -254,6 +254,61 @@ CREATE TABLE workout_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE fitness_meals (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    meal_type TEXT NOT NULL,
+    meal_name TEXT NOT NULL,
+    time TEXT,
+    foods JSONB NOT NULL,
+    quantity NUMERIC DEFAULT 1,
+    calories INTEGER DEFAULT 0 NOT NULL,
+    protein_g NUMERIC DEFAULT 0 NOT NULL,
+    carbs_g NUMERIC DEFAULT 0 NOT NULL,
+    fat_g NUMERIC DEFAULT 0 NOT NULL,
+    fiber_g NUMERIC DEFAULT 0 NOT NULL,
+    water_ml INTEGER DEFAULT 0 NOT NULL,
+    is_favorite BOOLEAN DEFAULT false NOT NULL,
+    date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE fitness_measurements (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    weight NUMERIC NOT NULL,
+    waist NUMERIC,
+    chest NUMERIC,
+    shoulders NUMERIC,
+    biceps NUMERIC,
+    forearms NUMERIC,
+    thighs NUMERIC,
+    calves NUMERIC,
+    neck NUMERIC,
+    hips NUMERIC,
+    date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE fitness_schedules (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    template_id UUID REFERENCES workout_templates(id) ON DELETE SET NULL,
+    workout_name TEXT NOT NULL,
+    date DATE NOT NULL,
+    is_rest_day BOOLEAN DEFAULT false NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE fitness_photos (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    photo_type TEXT NOT NULL,
+    photo_data TEXT NOT NULL,
+    date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Career Module
 CREATE TABLE career_projects (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -353,6 +408,10 @@ ALTER TABLE creative_sketches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE journals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fitness_meals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fitness_measurements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fitness_schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fitness_photos ENABLE ROW LEVEL SECURITY;
 
 -- Creating standard RLS Policies (Owner access)
 CREATE POLICY "Users can access their own profile" ON profiles FOR ALL USING (auth.uid() = id);
@@ -380,6 +439,10 @@ CREATE POLICY "Users can access their own sketches" ON creative_sketches FOR ALL
 CREATE POLICY "Users can access their own achievements" ON user_achievements FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can access their own journal" ON journals FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can access their own notifications" ON notifications FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can access their own meals" ON fitness_meals FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can access their own measurements" ON fitness_measurements FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can access their own schedules" ON fitness_schedules FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can access their own photos" ON fitness_photos FOR ALL USING (auth.uid() = user_id);
 
 -- Performance Indexes
 CREATE INDEX idx_quests_user_due ON quests(user_id, due_date);
