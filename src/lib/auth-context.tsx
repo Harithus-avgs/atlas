@@ -17,6 +17,12 @@ interface AuthContextType {
   toggleQuest: (questId: string) => void;
   addQuest: (title: string, type: Quest["type"], difficulty: Quest["difficulty"], stats: Record<string, number>) => void;
   
+  // Notifications
+  notifications: any[];
+  addNotification: (title: string, message: string, type: string) => void;
+  markNotificationAsRead: (id: string) => void;
+  clearNotifications: () => void;
+
   // Supabase Auth Methods
   supabaseUser: any | null;
   loginWithSupabase: (email: string, password: string) => Promise<{ error: any }>;
@@ -107,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [supabaseUser, setSupabaseUser] = useState<any | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   // Helper to load cloud data for authenticated Supabase users
   const loadCloudData = async (userId: string) => {
@@ -145,6 +152,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Load notifications from local storage on mount
+    const storedNotif = localStorage.getItem("atlas.notifications");
+    if (storedNotif) {
+      setNotifications(JSON.parse(storedNotif));
+    }
+
     const initAuth = async () => {
       if (isSupabaseConfigured && supabase) {
         const { data: { session } } = await supabase.auth.getSession();
@@ -338,7 +351,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const addNotification = (title: string, message: string, type: string) => {
     const notificationsKey = "atlas.notifications";
     const stored = localStorage.getItem(notificationsKey);
-    const notifications = stored ? JSON.parse(stored) : [];
+    const list = stored ? JSON.parse(stored) : [];
     const newNotif = {
       id: `notif-${Date.now()}-${Math.random()}`,
       title,
@@ -347,7 +360,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       is_read: false,
       created_at: new Date().toISOString()
     };
-    localStorage.setItem(notificationsKey, JSON.stringify([newNotif, ...notifications]));
+    const nextList = [newNotif, ...list];
+    setNotifications(nextList);
+    localStorage.setItem(notificationsKey, JSON.stringify(nextList));
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    const nextList = notifications.map((n) => (n.id === id ? { ...n, is_read: true } : n));
+    setNotifications(nextList);
+    localStorage.setItem("atlas.notifications", JSON.stringify(nextList));
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+    localStorage.setItem("atlas.notifications", JSON.stringify([]));
   };
 
   const gainStatPoints = (statUpdates: Record<string, number>) => {
@@ -534,6 +560,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         gainStatPoints,
         toggleQuest,
         addQuest,
+        notifications,
+        addNotification,
+        markNotificationAsRead,
+        clearNotifications,
         supabaseUser,
         loginWithSupabase,
         signupWithSupabase

@@ -38,13 +38,31 @@
   --color-rpg-knowledge: var(--rpg-knowledge);
   --color-rpg-creativity: var(--rpg-creativity);
   --color-rpg-strength: var(--rpg-strength);
+
+  /* Theme-adaptive overrides for hardcoded zinc elements */
+  --color-zinc-950: hsl(var(--background));
+  --color-zinc-900: hsl(var(--card));
+  --color-zinc-800: hsl(var(--border));
+  --color-zinc-700: hsl(var(--border-hover));
+  --color-zinc-300: hsl(var(--foreground));
+  --color-zinc-200: hsl(var(--foreground-bright));
+  --color-zinc-100: hsl(var(--foreground-brightest));
+  --color-zinc-500: hsl(var(--muted-foreground));
+  --color-zinc-400: hsl(var(--muted-foreground-bright));
 }
 
 :root {
   /* Light mode tokens */
   --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --card: 0 0% 98%;
+  --foreground: 240 10% 25%;
+  --foreground-bright: 240 10% 15%;
+  --foreground-brightest: 240 10% 5%;
+  --card: 240 4.8% 97%;
+  --border: 240 5.9% 90%;
+  --border-hover: 240 5.9% 82%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --muted-foreground-bright: 240 3.8% 30%;
+
   --card-foreground: 240 10% 3.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 3.9%;
@@ -53,12 +71,10 @@
   --secondary: 240 4.8% 95.9%;
   --secondary-foreground: 240 5.9% 10%;
   --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
   --accent: 240 4.8% 95.9%;
   --accent-foreground: 240 5.9% 10%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
   --input: 240 5.9% 90%;
   --ring: 250 95% 65%;
   --radius: 0.75rem;
@@ -74,8 +90,15 @@
 .dark {
   /* Dark mode tokens */
   --background: 240 10% 4%;
-  --foreground: 0 0% 98%;
+  --foreground: 240 5% 64.9%;
+  --foreground-bright: 0 0% 85%;
+  --foreground-brightest: 0 0% 98%;
   --card: 240 10% 9%;
+  --border: 240 3.7% 15.9%;
+  --border-hover: 240 3.7% 22%;
+  --muted-foreground: 240 5% 50%;
+  --muted-foreground-bright: 240 5% 64.9%;
+
   --card-foreground: 0 0% 98%;
   --popover: 240 10% 9%;
   --popover-foreground: 0 0% 98%;
@@ -84,19 +107,17 @@
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
   --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
   --accent: 240 3.7% 15.9%;
   --accent-foreground: 0 0% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
   --ring: 250 95% 65%;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   overflow-x: hidden;
 }
