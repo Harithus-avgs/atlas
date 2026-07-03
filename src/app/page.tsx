@@ -110,7 +110,7 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center font-mono">
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center font-mono">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
@@ -134,7 +134,7 @@ export default function Home() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-black text-white flex relative overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex relative overflow-hidden">
       
       {/* Background gradients */}
       <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full bg-violet-600/5 blur-[150px] pointer-events-none" />
